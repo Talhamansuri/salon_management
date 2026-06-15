@@ -10,10 +10,7 @@ use PHPMailer\PHPMailer\Exception;
 
 //Load Composer's autoloader
 require 'vendor/autoload.php';
-
-
-
-$connection = mysqli_connect("localhost", "root", "", "projectdb");
+require 'connection.php';
 
 if (isset($_POST['btn_appointment'])) {
 
