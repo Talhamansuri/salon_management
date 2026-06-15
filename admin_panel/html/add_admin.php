@@ -1,31 +1,67 @@
 <?php
 
 $alert = false;
+$alert_message = "";
 
 if (isset($_POST['btn_submit'])) {
+    $fnames = $_POST['fname'] ?? [];
+    $lnames = $_POST['lname'] ?? [];
+    $genders = $_POST['gender'] ?? [];
+    $dobs = $_POST['dob'] ?? [];
+    $emails = $_POST['email'] ?? [];
+    $passwords = $_POST['password'] ?? [];
+    $contacts = $_POST['contact'] ?? [];
+    $files = $_FILES['file_img'] ?? null;
 
-    $filename = $_FILES["file_img"]["name"];
-    $temp = $_FILES["file_img"]["tmp_name"];
-    $folder = "images/admin/" . $filename;
-    move_uploaded_file($temp, $folder);
-
-
-    $fname = $_POST['fname'];
-    $lname = $_POST['lname'];
-    $gender = $_POST['gender'];
-    $dob = $_POST['dob'];
-    $email = $_POST['email'];
-    $password = $_POST['password'];
-    $contact = $_POST['contact'];
-
-    //connection...!
     $connection = mysqli_connect("localhost", "root", "", "projectdb");
-    $query = mysqli_query($connection, "INSERT INTO `tbl_admin` (`admin_id`, `first_name`, `last_name`, `gender`, `DOB`, `contact`, `email`, `password`, `admin_img`) VALUES (NULL, '$fname', '$lname', '$gender', '$dob', '$contact', '$email', '$password', '$folder')");
-    if ($query) {
-        $alert = true;
-    } else {
-        echo "<script>alert('Record added failed...!');</script>";
+    
+    $success_count = 0;
+    $failed_count = 0;
+
+    for ($i = 0; $i < count($fnames); $i++) {
+        if (empty($fnames[$i])) {
+            continue;
+        }
+
+        $folder = "images/admin/default.jpg";
+        if (isset($files['name'][$i]) && !empty($files['name'][$i])) {
+            $filename = $files['name'][$i];
+            $temp = $files['tmp_name'][$i];
+            $folder = "images/admin/" . time() . "_" . $filename;
+            
+            if (!move_uploaded_file($temp, $folder)) {
+                $folder = "images/admin/default.jpg";
+            }
+        }
+
+        $fname = mysqli_real_escape_string($connection, $fnames[$i]);
+        $lname = mysqli_real_escape_string($connection, $lnames[$i]);
+        $gender = mysqli_real_escape_string($connection, $genders[$i]);
+        $dob = mysqli_real_escape_string($connection, $dobs[$i]);
+        $email = mysqli_real_escape_string($connection, $emails[$i]);
+        $password = mysqli_real_escape_string($connection, $passwords[$i]);
+        $contact = mysqli_real_escape_string($connection, $contacts[$i]);
+
+        $query = mysqli_query($connection, "INSERT INTO `tbl_admin` (`admin_id`, `first_name`, `last_name`, `gender`, `DOB`, `contact`, `email`, `password`, `admin_img`) VALUES (NULL, '$fname', '$lname', '$gender', '$dob', '$contact', '$email', '$password', '$folder')");
+        
+        if ($query) {
+            $success_count++;
+        } else {
+            $failed_count++;
+        }
     }
+
+    if ($success_count > 0) {
+        $alert = true;
+        $alert_message = "$success_count admin(s) added successfully!";
+        if ($failed_count > 0) {
+            $alert_message .= " ($failed_count failed)";
+        }
+    } elseif ($failed_count > 0) {
+        echo "<script>alert('Failed to add admins!');</script>";
+    }
+    
+    mysqli_close($connection);
 }
 ?>
 <!DOCTYPE html>
@@ -105,7 +141,7 @@ if (isset($_POST['btn_submit'])) {
 
                                     if ($alert == true) {
                                         echo "<div id='alert' class='card-header'><div class='alert alert-success alert-dismissible' role='alert'>
-                                                    Data submitted Successfully — check it out!
+                                                    " . $alert_message . " — check it out!
                                              </div></div>";
                                     }
 
@@ -115,85 +151,65 @@ if (isset($_POST['btn_submit'])) {
                                     </div>
                                     <div class="card-body">
                                         <form id="frm1" method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
-                                            <div class="row">
-                                                <div class="col">
-                                                    <div class="form-floating form-floating-outline mb-4">
-                                                        <input type="text" name="fname" class="form-control" id="floatingInput" placeholder="John" aria-describedby="floatingInputHelp" required />
-                                                        <label for="floatingInput">First Name</label>
-                                                        <div class="invalid-feedback">
-                                                            Please Enter First Name
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col">
-                                                    <div class="form-floating form-floating-outline mb-4">
-                                                        <input type="text" name="lname" class="form-control" id="floatingInput" placeholder="die" aria-describedby="floatingInputHelp" required />
-                                                        <label for="floatingInput">Last Name</label>
-                                                        <div class="invalid-feedback">
-                                                            Please Enter Last Name
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                            
+                                            <!-- Table for Multiple Entries -->
+                                            <div class="table-responsive">
+                                                <table class="table table-hover table-bordered" id="adminTable" style="border: 2px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                                                    <thead>
+                                                        <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                                                            <th style="text-align: center; padding: 12px; color: white;">#</th>
+                                                            <th style="padding: 12px; color: white;">First Name</th>
+                                                            <th style="padding: 12px; color: white;">Last Name</th>
+                                                            <th style="padding: 12px; color: white;">Gender</th>
+                                                            <th style="padding: 12px; color: white;">Date of Birth</th>
+                                                            <th style="padding: 12px; color: white;">Email</th>
+                                                            <th style="padding: 12px; color: white;">Password</th>
+                                                            <th style="padding: 12px; color: white;">Contact (10 digit)</th>
+                                                            <th style="padding: 12px; color: white;">Image</th>
+                                                            <th style="text-align: center; padding: 12px; color: white;">Action</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="tableBody">
+                                                        <tr class="admin-row" style="background-color: #f8f9fa;">
+                                                            <td class="row-number" style="text-align: center; font-weight: bold; background-color: #e9ecef;">1</td>
+                                                            <td><input type="text" name="fname[]" class="form-control form-control-sm" placeholder="First Name" pattern="[a-zA-Z\s]+" required /></td>
+                                                            <td><input type="text" name="lname[]" class="form-control form-control-sm" placeholder="Last Name" pattern="[a-zA-Z\s]+" required /></td>
+                                                            <td>
+                                                                <select name="gender[]" class="form-select form-select-sm" required>
+                                                                    <option value="">Select</option>
+                                                                    <option value="Male">Male</option>
+                                                                    <option value="Female">Female</option>
+                                                                </select>
+                                                            </td>
+                                                            <td><input type="date" name="dob[]" class="form-control form-control-sm" required /></td>
+                                                            <td>
+                                                                <input type="email" name="email[]" class="form-control form-control-sm email-input" placeholder="Email" required />
+                                                                <small class="text-danger email-error d-none">Invalid email format</small>
+                                                            </td>
+                                                            <td>
+                                                                <input type="password" name="password[]" class="form-control form-control-sm password-input" placeholder="Min 6 chars, 1 uppercase" required />
+                                                                <small class="text-danger password-error d-none">Min 6 chars, 1 uppercase, 1 number</small>
+                                                            </td>
+                                                            <td>
+                                                                <input type="tel" name="contact[]" class="form-control form-control-sm contact-input" placeholder="10-digit" pattern="[0-9]{10}" maxlength="10" required />
+                                                                <small class="text-danger contact-error d-none">Must be 10 digits</small>
+                                                            </td>
+                                                            <td><input type="file" name="file_img[]" class="form-control form-control-sm" accept="image/*" /></td>
+                                                            <td><button type="button" class="btn btn-sm btn-danger" onclick="removeAdminRow(this)"><i class="mdi mdi-delete"></i></button></td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
                                             </div>
 
-                                            <div class="mb-4">
-                                                <small class="text-light fw-medium">Gender</small>
-                                                <div class="form-check mt-2">
-                                                    <input name="gender" class="form-check-input" type="radio" name="gender" value="Male" id="defaultRadio1" />
-                                                    <label class="form-check-label" for="defaultRadio1"> Male </label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input name="gender" class="form-check-input" type="radio" name="gender" value="Female" id="defaultRadio2" required />
-                                                    <label class="form-check-label" for="defaultRadio2"> Female </label>
-                                                    <div class="invalid-feedback">
-                                                        Please select gender
-                                                    </div>
-                                                </div>
-
-                                                <div class="form-floating form-floating-outline mb-4 mt-4">
-                                                    <input class="form-control" name="dob" type="date" id="html5-date-input" required />
-                                                    <label for="html5-datetime-local-input">Datetime</label>
-                                                    <div class="invalid-feedback">Please select Date of birth</div>
-                                                </div>
+                                            <!-- Add Row Button & Submit -->
+                                            <div class="d-flex gap-2 mt-4">
+                                                <button type="button" class="btn btn-info" onclick="addAdminRow()">
+                                                    <i class="mdi mdi-plus-circle"></i> Add Admin
+                                                </button>
+                                                <button type="submit" name="btn_submit" class="btn btn-success">
+                                                    <i class="mdi mdi-check-circle"></i> Submit All Admins
+                                                </button>
                                             </div>
-                                            <div class="form-floating form-floating-outline mb-4">
-                                                <input type="email" name="email" class="form-control" id="floatingInput" placeholder="name@example.com" aria-describedby="floatingInputHelp" required />
-                                                <label for="floatingInput">Enter Email</label>
-                                                <div class="invalid-feedback">
-                                                    Please enter valid Email Address
-                                                </div>
-                                            </div>
-                                            <div class="mb-4">
-                                                <div class="form-password-toggle">
-                                                    <div class="input-group input-group-merge">
-                                                        <div class="form-floating form-floating-outline">
-                                                            <input type="password" name="password" class="form-control" id="floatingInput" placeholder="********" aria-describedby="floatingInputHelp" required />
-                                                            <label for="floatingInput">Enter Password</label>
-                                                            <div class="invalid-feedback">
-                                                                Please Enter your password
-                                                            </div>
-                                                        </div>
-                                                        <span class="input-group-text cursor-pointer"><i class="mdi mdi-eye-off-outline"></i></span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="form-floating form-floating-outline mb-4">
-                                                <input type="tel" name="contact" class="form-control" id="floatingInput" placeholder="Phone number" aria-describedby="floatingInputHelp" required />
-                                                <label for="floatingInput">Enter Phone number</label>
-                                                <div class="invalid-feedback">
-                                                    Please Enter Valid Phone number
-                                                </div>
-                                            </div>
-
-                                            <div class="input-group mb-4">
-                                                <input name="file_img" type="file" class="form-control" id="inputGroupFile02" required />
-                                                <label class="input-group-text" for="inputGroupFile02">Upload</label>
-                                                <div class="invalid-feedback">
-                                                    Please Upload File.
-                                                </div>
-                                            </div>
-
-                                            <button type="submit" name="btn_submit" class="btn btn-primary">Submit</button>
                                         </form>
                                     </div>
                                 </div>
@@ -240,6 +256,230 @@ if (isset($_POST['btn_submit'])) {
 
     <!-- Place this tag in your head or just before your close body tag. -->
     <script async defer src="https://buttons.github.io/buttons.js"></script>
+
+    <!-- Validation & Multiple Entry Script -->
+    <script>
+        // Validation Functions
+        function validateEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        function validatePassword(password) {
+            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{6,}$/;
+            return passwordRegex.test(password);
+        }
+
+        function validateContact(contact) {
+            const contactRegex = /^[0-9]{10}$/;
+            return contactRegex.test(contact);
+        }
+
+        // Real-time validation
+        document.addEventListener('input', function(e) {
+            if (e.target.classList.contains('email-input')) {
+                const row = e.target.closest('tr');
+                const errorMsg = row.querySelector('.email-error');
+                if (!validateEmail(e.target.value) && e.target.value !== '') {
+                    e.target.classList.add('border-danger');
+                    errorMsg.classList.remove('d-none');
+                } else {
+                    e.target.classList.remove('border-danger');
+                    errorMsg.classList.add('d-none');
+                }
+            }
+
+            if (e.target.classList.contains('password-input')) {
+                const row = e.target.closest('tr');
+                const errorMsg = row.querySelector('.password-error');
+                if (!validatePassword(e.target.value) && e.target.value !== '') {
+                    e.target.classList.add('border-danger');
+                    errorMsg.classList.remove('d-none');
+                } else {
+                    e.target.classList.remove('border-danger');
+                    errorMsg.classList.add('d-none');
+                }
+            }
+
+            if (e.target.classList.contains('contact-input')) {
+                const row = e.target.closest('tr');
+                const errorMsg = row.querySelector('.contact-error');
+                e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                if (!validateContact(e.target.value) && e.target.value !== '') {
+                    e.target.classList.add('border-danger');
+                    errorMsg.classList.remove('d-none');
+                } else {
+                    e.target.classList.remove('border-danger');
+                    errorMsg.classList.add('d-none');
+                }
+            }
+        });
+
+        // Form submission validation
+        document.getElementById('frm1').addEventListener('submit', function(e) {
+            let isValid = true;
+            const rows = document.querySelectorAll('.admin-row');
+            
+            rows.forEach((row) => {
+                const fname = row.querySelector('input[name="fname[]"]').value;
+                const lname = row.querySelector('input[name="lname[]"]').value;
+                const gender = row.querySelector('select[name="gender[]"]').value;
+                const dob = row.querySelector('input[name="dob[]"]').value;
+                const email = row.querySelector('input[name="email[]"]').value;
+                const password = row.querySelector('input[name="password[]"]').value;
+                const contact = row.querySelector('input[name="contact[]"]').value;
+
+                if (!fname.trim()) {
+                    alert('Please enter First Name');
+                    isValid = false;
+                    return;
+                }
+                if (!lname.trim()) {
+                    alert('Please enter Last Name');
+                    isValid = false;
+                    return;
+                }
+                if (!gender) {
+                    alert('Please select Gender');
+                    isValid = false;
+                    return;
+                }
+                if (!dob) {
+                    alert('Please select Date of Birth');
+                    isValid = false;
+                    return;
+                }
+                if (!validateEmail(email)) {
+                    alert('Invalid Email: ' + email);
+                    isValid = false;
+                    return;
+                }
+                if (!validatePassword(password)) {
+                    alert('Password must be minimum 6 characters with 1 uppercase letter and 1 number');
+                    isValid = false;
+                    return;
+                }
+                if (!validateContact(contact)) {
+                    alert('Contact must be 10 digits');
+                    isValid = false;
+                    return;
+                }
+            });
+
+            if (!isValid) {
+                e.preventDefault();
+            }
+        });
+
+        function addAdminRow() {
+            const tableBody = document.getElementById('tableBody');
+            const rowCount = tableBody.querySelectorAll('.admin-row').length + 1;
+            
+            const newRow = document.createElement('tr');
+            newRow.className = 'admin-row';
+            newRow.style.backgroundColor = '#f8f9fa';
+            newRow.innerHTML = `
+                <td class="row-number" style="text-align: center; font-weight: bold; background-color: #e9ecef;">${rowCount}</td>
+                <td><input type="text" name="fname[]" class="form-control form-control-sm" placeholder="First Name" pattern="[a-zA-Z\s]+" required /></td>
+                <td><input type="text" name="lname[]" class="form-control form-control-sm" placeholder="Last Name" pattern="[a-zA-Z\s]+" required /></td>
+                <td>
+                    <select name="gender[]" class="form-select form-select-sm" required>
+                        <option value="">Select</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                    </select>
+                </td>
+                <td><input type="date" name="dob[]" class="form-control form-control-sm" required /></td>
+                <td>
+                    <input type="email" name="email[]" class="form-control form-control-sm email-input" placeholder="Email" required />
+                    <small class="text-danger email-error d-none">Invalid email format</small>
+                </td>
+                <td>
+                    <input type="password" name="password[]" class="form-control form-control-sm password-input" placeholder="Min 6 chars, 1 uppercase" required />
+                    <small class="text-danger password-error d-none">Min 6 chars, 1 uppercase, 1 number</small>
+                </td>
+                <td>
+                    <input type="tel" name="contact[]" class="form-control form-control-sm contact-input" placeholder="10-digit" pattern="[0-9]{10}" maxlength="10" required />
+                    <small class="text-danger contact-error d-none">Must be 10 digits</small>
+                </td>
+                <td><input type="file" name="file_img[]" class="form-control form-control-sm" accept="image/*" /></td>
+                <td><button type="button" class="btn btn-sm btn-danger" onclick="removeAdminRow(this)"><i class="mdi mdi-delete"></i></button></td>
+            `;
+            tableBody.appendChild(newRow);
+            updateRowNumbers();
+        }
+
+        function removeAdminRow(button) {
+            const row = button.parentNode.parentNode;
+            const tableBody = document.getElementById('tableBody');
+            
+            if (tableBody.querySelectorAll('.admin-row').length > 1) {
+                row.remove();
+                updateRowNumbers();
+            } else {
+                alert('At least one admin is required!');
+            }
+        }
+
+        function updateRowNumbers() {
+            const rows = document.querySelectorAll('.admin-row');
+            rows.forEach((row, index) => {
+                row.querySelector('.row-number').textContent = index + 1;
+            });
+        }
+    </script>
+
+    <!-- Custom Styles -->
+    <style>
+        .form-control.border-danger,
+        .form-select.border-danger {
+            border-color: #dc3545 !important;
+            background-color: #fff5f5;
+        }
+
+        .email-error,
+        .password-error,
+        .contact-error {
+            display: block;
+            font-size: 0.75rem;
+            margin-top: 2px;
+        }
+
+        .form-control-sm,
+        .form-select-sm {
+            padding: 0.375rem 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: #e7f3ff !important;
+            transition: background-color 0.3s ease;
+        }
+
+        .table tbody td {
+            vertical-align: middle;
+            padding: 8px;
+        }
+
+        .btn {
+            border-radius: 5px;
+            padding: 0.5rem 1.5rem;
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .table-responsive {
+                font-size: 0.85rem;
+            }
+
+            .form-control-sm,
+            .form-select-sm {
+                padding: 0.25rem 0.4rem;
+                font-size: 0.75rem;
+            }
+        }
+    </style>
+
     <script>
         (function() {
             'use strict'

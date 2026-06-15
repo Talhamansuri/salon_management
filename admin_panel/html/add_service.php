@@ -2,25 +2,58 @@
 
 $connection = mysqli_connect("localhost", "root", "", "projectdb");
 $alert = false;
-
+$alert_message = "";
 
 if (isset($_POST['btn_submit'])) {
+    $service_names = $_POST['service_name'] ?? [];
+    $service_types = $_POST['service_type'] ?? [];
+    $descriptions = $_POST['description'] ?? [];
+    $categories = $_POST['category'] ?? [];
+    $prices = $_POST['price'] ?? [];
+    $files = $_FILES['img_path'] ?? null;
 
-    $filename = $_FILES["img_path"]["name"];
-    $temp = $_FILES["img_path"]["tmp_name"];
-    $folder = "images/service/" . $filename;
-    move_uploaded_file($temp, $folder);
+    $success_count = 0;
+    $failed_count = 0;
 
-    $name = $_POST['service_name'];
-    $type = $_POST['service_type'];
-    $s_category = $_POST['category'];
-    $description = $_POST['description'];
-    $price = $_POST['price'];
-    $query = mysqli_query($connection, "INSERT INTO `tbl_service` (`service_id`, `service_name`, `description`, `service_charge`,'service_type', `service_img`, `category_id`) VALUES (NULL, '$name', '$description', '$price','$type', '$folder', '$s_category')");
-    if ($query) {
+    for ($i = 0; $i < count($service_names); $i++) {
+        if (empty($service_names[$i])) {
+            continue;
+        }
+
+        $folder = "images/service/default.jpg";
+        if (isset($files['name'][$i]) && !empty($files['name'][$i])) {
+            $filename = $files['name'][$i];
+            $temp = $files['tmp_name'][$i];
+            $folder = "images/service/" . time() . "_" . $filename;
+            
+            if (!move_uploaded_file($temp, $folder)) {
+                $folder = "images/service/default.jpg";
+            }
+        }
+
+        $name = mysqli_real_escape_string($connection, $service_names[$i]);
+        $type = mysqli_real_escape_string($connection, $service_types[$i]);
+        $description = mysqli_real_escape_string($connection, $descriptions[$i]);
+        $category = mysqli_real_escape_string($connection, $categories[$i]);
+        $price = mysqli_real_escape_string($connection, $prices[$i]);
+
+        $query = mysqli_query($connection, "INSERT INTO `tbl_service` (`service_id`, `service_name`, `description`, `service_charge`, `service_type`, `service_img`, `category_id`) VALUES (NULL, '$name', '$description', '$price', '$type', '$folder', '$category')");
+        
+        if ($query) {
+            $success_count++;
+        } else {
+            $failed_count++;
+        }
+    }
+
+    if ($success_count > 0) {
         $alert = true;
-    } else {
-        echo "<script>alert('Record added failed...!');</script>";
+        $alert_message = "$success_count service(s) added successfully!";
+        if ($failed_count > 0) {
+            $alert_message .= " ($failed_count failed)";
+        }
+    } elseif ($failed_count > 0) {
+        echo "<script>alert('Failed to add services!');</script>";
     }
 }
 ?>
@@ -100,7 +133,7 @@ if (isset($_POST['btn_submit'])) {
 
                                     if ($alert == true) {
                                         echo "<div id='alert' class='card-header'><div class='alert alert-success alert-dismissible' role='alert'>
-                                                        Data submitted Successfully — check it out!
+                                                        " . $alert_message . " — check it out!
                                                 </div></div>";
                                     }
 
@@ -111,61 +144,62 @@ if (isset($_POST['btn_submit'])) {
                                     <div class="card-body">
                                         <form id="frm1" method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
 
-                                            <div class="form-floating form-floating-outline mb-4">
-                                                <input type="text" name="service_name" class="form-control" id="floatingInput" placeholder="Service name" aria-describedby="floatingInputHelp" required />
-                                                <label for="floatingInput">Service Name</label>
-                                                <div class="invalid-feedback">
-                                                    Please Enter Service name
-                                                </div>
+                                            <!-- Table for Multiple Entries -->
+                                            <div class="table-responsive">
+                                                <table class="table table-hover table-bordered" id="serviceTable" style="border: 2px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                                                    <thead>
+                                                        <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                                                            <th style="text-align: center; padding: 12px; color: white;">#</th>
+                                                            <th style="padding: 12px; color: white;">Service Name</th>
+                                                            <th style="padding: 12px; color: white;">Service Type</th>
+                                                            <th style="padding: 12px; color: white;">Description</th>
+                                                            <th style="padding: 12px; color: white;">Category</th>
+                                                            <th style="padding: 12px; color: white;">Image</th>
+                                                            <th style="padding: 12px; color: white;">Price</th>
+                                                            <th style="text-align: center; padding: 12px; color: white;">Action</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="tableBody">
+                                                        <tr class="service-row" style="background-color: #f8f9fa;">
+                                                            <td class="row-number" style="text-align: center; font-weight: bold; background-color: #e9ecef;">1</td>
+                                                            <td><input type="text" name="service_name[]" class="form-control form-control-sm" placeholder="Service name" required /></td>
+                                                            <td>
+                                                                <select name="service_type[]" class="form-select form-select-sm" required>
+                                                                    <option value="">Select</option>
+                                                                    <option value="Male">Male</option>
+                                                                    <option value="Female">Female</option>
+                                                                </select>
+                                                            </td>
+                                                            <td><textarea name="description[]" class="form-control form-control-sm" placeholder="Description" rows="2" required></textarea></td>
+                                                            <td>
+                                                                <select name="category[]" class="form-select form-select-sm" required>
+                                                                    <option value="">Select Category</option>
+                                                                    <?php
+                                                                    $conn = mysqli_connect("localhost", "root", "", "projectdb");
+                                                                    $query = mysqli_query($conn, "select * from tbl_service_category");
+                                                                    while ($row = mysqli_fetch_array($query)) {
+                                                                        echo "<option value='$row[0]'>$row[1]</option>";
+                                                                    }
+                                                                    ?>
+                                                                </select>
+                                                            </td>
+                                                            <td><input type="file" name="img_path[]" class="form-control form-control-sm" accept="image/*" /></td>
+                                                            <td><input type="number" name="price[]" class="form-control form-control-sm" placeholder="Price" min="0" step="0.01" required /></td>
+                                                            <td><button type="button" class="btn btn-sm btn-danger" onclick="removeServiceRow(this)"><i class="mdi mdi-delete"></i></button></td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
                                             </div>
-                                            <div class="form-floating form-floating-outline mb-4">
-                                                <select class="form-select" id="exampleFormControlSelect1" name="service_type" aria-label="Default select example" required>
-                                                    <option value="Male" selected >Male</option>
-                                                    <option value="Female">Female</option>
-                                                </select>
-                                </div>
 
-                                            <div class="form-floating form-floating-outline mb-4">
-                                                <textarea class="form-control h-px-100" name="description" id="exampleFormControlTextarea1" placeholder="write description here..." required></textarea>
-                                                <label for="exampleFormControlTextarea1">Description</label>
-                                                <div class="invalid-feedback">
-                                                    Please enter Description
-                                                </div>
+                                            <!-- Add Row Button & Submit -->
+                                            <div class="d-flex gap-2 mt-4">
+                                                <button type="button" class="btn btn-info" onclick="addServiceRow()">
+                                                    <i class="mdi mdi-plus-circle"></i> Add Service
+                                                </button>
+                                                <button type="submit" name="btn_submit" class="btn btn-success">
+                                                    <i class="mdi mdi-check-circle"></i> Submit All Services
+                                                </button>
                                             </div>
-
-                                            <div class="form-floating form-floating-outline mb-4">
-                                                <select class="form-select" id="exampleFormControlSelect1" name="category" aria-label="Default select example" required>
-                                                    <option value="" selected disabled>Select Option for Category</option>
-                                                    <?php
-                                                    $conn = mysqli_connect("localhost", "root", "", "projectdb");
-                                                    $query = mysqli_query($conn, "select * from tbl_service_category");
-                                                    while ($row = mysqli_fetch_array($query)) {
-                                                        echo "<option value='$row[0]'>$row[1]</option>";
-                                                    }
-                                                    ?>
-                                                </select>
-                                                <label for="exampleFormControlSelect1">Select Category</label>
-                                                <div class="invalid-feedback">
-                                                    Please Select category
-                                                </div>
-                                            </div>
-
-                                            <div class="input-group mb-4">
-                                                <input type="file" name="img_path" class="form-control" id="inputGroupFile02" required />
-                                                <label class="input-group-text" for="inputGroupFile02">Upload</label>
-                                                <div class="invalid-feedback">
-                                                    Please upload file
-                                                </div>
-                                            </div>
-
-                                            <div class="form-floating form-floating-outline mb-3">
-                                                <input type="number" name="price" class="form-control" id="floatingInput" placeholder="Price" aria-describedby="floatingInputHelp" required />
-                                                <label for="floatingInput">Price</label>
-                                                <div class="invalid-feedback">
-                                                    Pleas Enter Price
-                                                </div>
-                                            </div>
-                                            <button type="submit" name="btn_submit" class="btn btn-primary">Submit</button>
                                         </form>
                                     </div>
                                 </div>
@@ -212,6 +246,104 @@ if (isset($_POST['btn_submit'])) {
 
     <!-- Place this tag in your head or just before your close body tag. -->
     <script async defer src="https://buttons.github.io/buttons.js"></script>
+
+    <!-- Multiple Service Entry Script -->
+    <script>
+        function addServiceRow() {
+            const tableBody = document.getElementById('tableBody');
+            const rowCount = tableBody.querySelectorAll('.service-row').length + 1;
+            
+            const newRow = document.createElement('tr');
+            newRow.className = 'service-row';
+            newRow.style.backgroundColor = '#f8f9fa';
+            newRow.innerHTML = `
+                <td class="row-number" style="text-align: center; font-weight: bold; background-color: #e9ecef;">${rowCount}</td>
+                <td><input type="text" name="service_name[]" class="form-control form-control-sm" placeholder="Service name" required /></td>
+                <td>
+                    <select name="service_type[]" class="form-select form-select-sm" required>
+                        <option value="">Select</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                    </select>
+                </td>
+                <td><textarea name="description[]" class="form-control form-control-sm" placeholder="Description" rows="2" required></textarea></td>
+                <td>
+                    <select name="category[]" class="form-select form-select-sm" required>
+                        <option value="">Select Category</option>
+                        <?php
+                        $conn = mysqli_connect("localhost", "root", "", "projectdb");
+                        $query = mysqli_query($conn, "select * from tbl_service_category");
+                        while ($row = mysqli_fetch_array($query)) {
+                            echo "<option value='$row[0]'>$row[1]</option>";
+                        }
+                        ?>
+                    </select>
+                </td>
+                <td><input type="file" name="img_path[]" class="form-control form-control-sm" accept="image/*" /></td>
+                <td><input type="number" name="price[]" class="form-control form-control-sm" placeholder="Price" min="0" step="0.01" required /></td>
+                <td><button type="button" class="btn btn-sm btn-danger" onclick="removeServiceRow(this)"><i class="mdi mdi-delete"></i></button></td>
+            `;
+            tableBody.appendChild(newRow);
+            updateRowNumbers();
+        }
+
+        function removeServiceRow(button) {
+            const row = button.parentNode.parentNode;
+            const tableBody = document.getElementById('tableBody');
+            
+            if (tableBody.querySelectorAll('.service-row').length > 1) {
+                row.remove();
+                updateRowNumbers();
+            } else {
+                alert('At least one service is required!');
+            }
+        }
+
+        function updateRowNumbers() {
+            const rows = document.querySelectorAll('.service-row');
+            rows.forEach((row, index) => {
+                row.querySelector('.row-number').textContent = index + 1;
+            });
+        }
+    </script>
+
+    <!-- Custom Styles -->
+    <style>
+        .form-control-sm,
+        .form-select-sm {
+            padding: 0.375rem 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: #e7f3ff !important;
+            transition: background-color 0.3s ease;
+        }
+
+        .table tbody td {
+            vertical-align: middle;
+            padding: 8px;
+        }
+
+        .btn {
+            border-radius: 5px;
+            padding: 0.5rem 1.5rem;
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .table-responsive {
+                font-size: 0.85rem;
+            }
+
+            .form-control-sm,
+            .form-select-sm {
+                padding: 0.25rem 0.4rem;
+                font-size: 0.75rem;
+            }
+        }
+    </style>
+
     <script>
         (function() {
             'use strict'

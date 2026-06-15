@@ -3,20 +3,45 @@
 require "connection.php";
 
 if (isset($_POST['btn_submit'])) {
+    $service_ids = $_POST['service'] ?? [];
+    $fnames = $_POST['fname'] ?? [];
+    $lnames = $_POST['lname'] ?? [];
+    $genders = $_POST['gender'] ?? [];
+    $emails = $_POST['email'] ?? [];
+    $contacts = $_POST['contact'] ?? [];
+    $messages = $_POST['msg'] ?? [];
+    $dates = $_POST['date'] ?? [];
 
-    $service_id = $_POST['service'];
-    $fname = $_POST['fname'];
-    $lname = $_POST['lname'];
-    $gender = $_POST['gender'];
-    $email = $_POST['email'];
-    $contact = $_POST['contact'];
-    $messege = $_POST['msg'];
-    $date = $_POST['date'];
-    $add_query = mysqli_query($connection, "INSERT INTO `tbl_appointment` (`appointment_id`, `first_name`, `last_name`, `gender`, `email`, `contact`,`service`, `message`, `appointment_date`, `status`) VALUES (NULL, '$fname', '$lname', '$gender', '$email', '$contact','$service_id', '$messege ', '$date', 'Pending')");
-    if ($add_query) {
-        echo "<script>alert('Record added successfully...!');</script>";
-    } else {
-        echo "<script>alert('Record added failed...!');</script>";
+    $success_count = 0;
+    $failed_count = 0;
+
+    for ($i = 0; $i < count($fnames); $i++) {
+        if (empty($fnames[$i])) {
+            continue;
+        }
+
+        $fname = mysqli_real_escape_string($connection, $fnames[$i]);
+        $lname = mysqli_real_escape_string($connection, $lnames[$i]);
+        $gender = mysqli_real_escape_string($connection, $genders[$i]);
+        $email = mysqli_real_escape_string($connection, $emails[$i]);
+        $contact = mysqli_real_escape_string($connection, $contacts[$i]);
+        $message = mysqli_real_escape_string($connection, $messages[$i]);
+        $date = mysqli_real_escape_string($connection, $dates[$i]);
+        $service_id = mysqli_real_escape_string($connection, $service_ids[$i]);
+
+        $add_query = mysqli_query($connection, "INSERT INTO `tbl_appointment` (`appointment_id`, `first_name`, `last_name`, `gender`, `email`, `contact`, `service`, `message`, `appointment_date`, `status`) VALUES (NULL, '$fname', '$lname', '$gender', '$email', '$contact', '$service_id', '$message', '$date', 'Pending')");
+        
+        if ($add_query) {
+            $success_count++;
+        } else {
+            $failed_count++;
+        }
+    }
+
+    if ($success_count > 0) {
+        echo "<script>alert('$success_count appointment(s) added successfully!');</script>";
+    } elseif ($failed_count > 0) {
+        echo "<script>alert('Failed to add appointments!');</script>";
     }
 }
 ?>
@@ -98,81 +123,71 @@ if (isset($_POST['btn_submit'])) {
                                     <div class="card-body">
                                         <form id="frm1" method="post" class="needs-validation" novalidate>
 
-                                            <div class="form-floating form-floating-outline mb-4">
-                                                <select class="form-select" id="exampleFormControlSelect1" name="service" aria-label="Default select example" required>
-                                                    <option value="" selected disabled>Select Service type (require)</option>
-                                                    <?php
-                                                    $query = mysqli_query($connection, "select * from tbl_service_category");
-                                                    while ($row = mysqli_fetch_array($query)) {
-                                                        echo "<option value='$row[0]'>$row[1]</option>";
-                                                    }
-                                                    ?>
-                                                </select>
-                                                <label for="exampleFormControlSelect1">Select Service type</label>
-                                                <div class="invalid-feedback">Please select service type</div>
+                                            <!-- Table for Multiple Entries -->
+                                            <div class="table-responsive">
+                                                <table class="table table-hover table-bordered" id="appointmentTable" style="border: 2px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                                                    <thead>
+                                                        <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                                                            <th style="text-align: center; padding: 12px; color: white;">#</th>
+                                                            <th style="padding: 12px; color: white;">Service</th>
+                                                            <th style="padding: 12px; color: white;">First Name</th>
+                                                            <th style="padding: 12px; color: white;">Last Name</th>
+                                                            <th style="padding: 12px; color: white;">Gender</th>
+                                                            <th style="padding: 12px; color: white;">Email</th>
+                                                            <th style="padding: 12px; color: white;">Contact (10 digit)</th>
+                                                            <th style="padding: 12px; color: white;">Date & Time</th>
+                                                            <th style="padding: 12px; color: white;">Message</th>
+                                                            <th style="text-align: center; padding: 12px; color: white;">Action</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="tableBody">
+                                                        <tr class="appointment-row" style="background-color: #f8f9fa;">
+                                                            <td class="row-number" style="text-align: center; font-weight: bold; background-color: #e9ecef;">1</td>
+                                                            <td>
+                                                                <select name="service[]" class="form-select form-select-sm" required>
+                                                                    <option value="">Select Service</option>
+                                                                    <?php
+                                                                    $query = mysqli_query($connection, "select * from tbl_service_category");
+                                                                    while ($row = mysqli_fetch_array($query)) {
+                                                                        echo "<option value='$row[0]'>$row[1]</option>";
+                                                                    }
+                                                                    ?>
+                                                                </select>
+                                                            </td>
+                                                            <td><input type="text" name="fname[]" class="form-control form-control-sm" placeholder="First Name" pattern="[a-zA-Z\s]+" required /></td>
+                                                            <td><input type="text" name="lname[]" class="form-control form-control-sm" placeholder="Last Name" pattern="[a-zA-Z\s]+" required /></td>
+                                                            <td>
+                                                                <select name="gender[]" class="form-select form-select-sm" required>
+                                                                    <option value="">Select</option>
+                                                                    <option value="Male">Male</option>
+                                                                    <option value="Female">Female</option>
+                                                                </select>
+                                                            </td>
+                                                            <td>
+                                                                <input type="email" name="email[]" class="form-control form-control-sm email-input" placeholder="Email" required />
+                                                                <small class="text-danger email-error d-none">Invalid email format</small>
+                                                            </td>
+                                                            <td>
+                                                                <input type="tel" name="contact[]" class="form-control form-control-sm contact-input" placeholder="10-digit" pattern="[0-9]{10}" maxlength="10" required />
+                                                                <small class="text-danger contact-error d-none">Must be 10 digits</small>
+                                                            </td>
+                                                            <td><input type="datetime-local" name="date[]" class="form-control form-control-sm" required /></td>
+                                                            <td><textarea name="msg[]" class="form-control form-control-sm" placeholder="Message" rows="2"></textarea></td>
+                                                            <td><button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)"><i class="mdi mdi-delete"></i></button></td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
                                             </div>
 
-                                            <div class="form-floating form-floating-outline mb-4">
-                                                <input class="form-control" name="date" type="datetime-local" id="html5-datetime-local-input" required/>
-                                                <label for="html5-datetime-local-input">Datetime</label>
-                                                <div class="invalid-feedback">Please select Date and Time</div>
+                                            <!-- Add Row Button & Submit -->
+                                            <div class="d-flex gap-2 mt-4">
+                                                <button type="button" class="btn btn-info" onclick="addAppointmentRow()">
+                                                    <i class="mdi mdi-plus-circle"></i> Add Appointment
+                                                </button>
+                                                <button type="submit" name="btn_submit" class="btn btn-success">
+                                                    <i class="mdi mdi-check-circle"></i> Submit All Appointments
+                                                </button>
                                             </div>
-
-                                            <div class="row mb-1">
-                                                <div class="col">
-                                                    <div class="form-floating form-floating-outline mb-4">
-                                                        <input type="text" name="fname" class="form-control" id="floatingInput" placeholder="First name (require)" aria-describedby="floatingInputHelp" required />
-                                                        <label for="floatingInput">first Name</label>
-                                                        <div class="invalid-feedback">
-                                                            Please Enter First Name
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col">
-                                                    <div class="form-floating form-floating-outline mb-4">
-                                                        <input type="text" name="lname" class="form-control" id="floatingInput" placeholder="Last name(require)" aria-describedby="floatingInputHelp" required />
-                                                        <label for="floatingInput">Last Name</label>
-                                                        <div class="invalid-feedback">
-                                                            Please Enter Last Name
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div class="col-md mb-3">
-                                                <small class="text-light fw-medium d-block">Gender</small>
-                                                <div class="form-check form-check-inline mt-3">
-                                                    <input class="form-check-input" name="gender" type="radio" name="inlineRadioOptions" id="inlineRadio1" value="Male" required />
-                                                    <label class="form-check-label" for="inlineRadio1">Male</label>
-                                                </div>
-                                                <div class="form-check form-check-inline">
-                                                    <input class="form-check-input" name="gender" type="radio" name="inlineRadioOptions" id="inlineRadio2" value="Female" required/>
-                                                    <label class="form-check-label" for="inlineRadio2">Female</label>
-                                                </div>
-                                            </div>
-                                            <div class="form-floating form-floating-outline mb-4">
-                                                <input type="email" name="email" class="form-control" id="floatingInput" placeholder="name@example.com(require)" aria-describedby="floatingInputHelp" required />
-                                                <label for="floatingInput">Enter Email</label>
-                                                <div class="invalid-feedback">
-                                                    Please enter valid Email Address
-                                                </div>
-                                            </div>
-
-                                            <div class="form-floating form-floating-outline mb-4">
-                                                <input type="tel" name="contact" class="form-control" id="floatingInput" placeholder="Phone number (require)" aria-describedby="floatingInputHelp" required />
-                                                <label for="floatingInput">Enter Phone number</label>
-                                                <div class="invalid-feedback">
-                                                    Please Enter Valid Phone number
-                                                </div>
-                                            </div>
-
-                                            <div class="form-floating form-floating-outline mb-4">
-                                                <textarea name="msg" class="form-control h-px-100" id="exampleFormControlTextarea1" placeholder="your messege if required"></textarea>
-                                                <label for="exampleFormControlTextarea1">your messege</label>
-                                            </div>
-
-
-                                            <button type="submit" name="btn_submit" class="btn btn-primary">Submit</button>
                                         </form>
                                     </div>
                                 </div>
@@ -219,6 +234,219 @@ if (isset($_POST['btn_submit'])) {
 
     <!-- Place this tag in your head or just before your close body tag. -->
     <script async defer src="https://buttons.github.io/buttons.js"></script>
+
+    <!-- Validation & Multiple Entry Script -->
+    <script>
+        // Validation Functions
+        function validateEmail(email) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(email);
+        }
+
+        function validateContact(contact) {
+            const contactRegex = /^[0-9]{10}$/;
+            return contactRegex.test(contact);
+        }
+
+        // Real-time validation
+        document.addEventListener('input', function(e) {
+            if (e.target.classList.contains('email-input')) {
+                const row = e.target.closest('tr');
+                const errorMsg = row.querySelector('.email-error');
+                if (!validateEmail(e.target.value) && e.target.value !== '') {
+                    e.target.classList.add('border-danger');
+                    errorMsg.classList.remove('d-none');
+                } else {
+                    e.target.classList.remove('border-danger');
+                    errorMsg.classList.add('d-none');
+                }
+            }
+
+            if (e.target.classList.contains('contact-input')) {
+                const row = e.target.closest('tr');
+                const errorMsg = row.querySelector('.contact-error');
+                e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                if (!validateContact(e.target.value) && e.target.value !== '') {
+                    e.target.classList.add('border-danger');
+                    errorMsg.classList.remove('d-none');
+                } else {
+                    e.target.classList.remove('border-danger');
+                    errorMsg.classList.add('d-none');
+                }
+            }
+        });
+
+        // Form submission validation
+        document.getElementById('frm1').addEventListener('submit', function(e) {
+            let isValid = true;
+            const rows = document.querySelectorAll('.appointment-row');
+            
+            rows.forEach((row) => {
+                const service = row.querySelector('select[name="service[]"]').value;
+                const fname = row.querySelector('input[name="fname[]"]').value;
+                const lname = row.querySelector('input[name="lname[]"]').value;
+                const gender = row.querySelector('select[name="gender[]"]').value;
+                const email = row.querySelector('input[name="email[]"]').value;
+                const contact = row.querySelector('input[name="contact[]"]').value;
+                const date = row.querySelector('input[name="date[]"]').value;
+
+                if (!service) {
+                    alert('Please select Service');
+                    isValid = false;
+                    return;
+                }
+                if (!fname.trim()) {
+                    alert('Please enter First Name');
+                    isValid = false;
+                    return;
+                }
+                if (!lname.trim()) {
+                    alert('Please enter Last Name');
+                    isValid = false;
+                    return;
+                }
+                if (!gender) {
+                    alert('Please select Gender');
+                    isValid = false;
+                    return;
+                }
+                if (!validateEmail(email)) {
+                    alert('Invalid Email: ' + email);
+                    isValid = false;
+                    return;
+                }
+                if (!validateContact(contact)) {
+                    alert('Contact must be 10 digits');
+                    isValid = false;
+                    return;
+                }
+                if (!date) {
+                    alert('Please select Date and Time');
+                    isValid = false;
+                    return;
+                }
+            });
+
+            if (!isValid) {
+                e.preventDefault();
+            }
+        });
+
+        function addAppointmentRow() {
+            const tableBody = document.getElementById('tableBody');
+            const rowCount = tableBody.querySelectorAll('.appointment-row').length + 1;
+            
+            const newRow = document.createElement('tr');
+            newRow.className = 'appointment-row';
+            newRow.style.backgroundColor = '#f8f9fa';
+            newRow.innerHTML = `
+                <td class="row-number" style="text-align: center; font-weight: bold; background-color: #e9ecef;">${rowCount}</td>
+                <td>
+                    <select name="service[]" class="form-select form-select-sm" required>
+                        <option value="">Select Service</option>
+                        <?php
+                        $query = mysqli_query($connection, "select * from tbl_service_category");
+                        while ($row = mysqli_fetch_array($query)) {
+                            echo "<option value='$row[0]'>$row[1]</option>";
+                        }
+                        ?>
+                    </select>
+                </td>
+                <td><input type="text" name="fname[]" class="form-control form-control-sm" placeholder="First Name" pattern="[a-zA-Z\s]+" required /></td>
+                <td><input type="text" name="lname[]" class="form-control form-control-sm" placeholder="Last Name" pattern="[a-zA-Z\s]+" required /></td>
+                <td>
+                    <select name="gender[]" class="form-select form-select-sm" required>
+                        <option value="">Select</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                    </select>
+                </td>
+                <td>
+                    <input type="email" name="email[]" class="form-control form-control-sm email-input" placeholder="Email" required />
+                    <small class="text-danger email-error d-none">Invalid email format</small>
+                </td>
+                <td>
+                    <input type="tel" name="contact[]" class="form-control form-control-sm contact-input" placeholder="10-digit" pattern="[0-9]{10}" maxlength="10" required />
+                    <small class="text-danger contact-error d-none">Must be 10 digits</small>
+                </td>
+                <td><input type="datetime-local" name="date[]" class="form-control form-control-sm" required /></td>
+                <td><textarea name="msg[]" class="form-control form-control-sm" placeholder="Message" rows="2"></textarea></td>
+                <td><button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)"><i class="mdi mdi-delete"></i></button></td>
+            `;
+            tableBody.appendChild(newRow);
+            updateRowNumbers();
+        }
+
+        function removeRow(button) {
+            const row = button.parentNode.parentNode;
+            const tableBody = document.getElementById('tableBody');
+            
+            if (tableBody.querySelectorAll('.appointment-row').length > 1) {
+                row.remove();
+                updateRowNumbers();
+            } else {
+                alert('At least one appointment is required!');
+            }
+        }
+
+        function updateRowNumbers() {
+            const rows = document.querySelectorAll('.appointment-row');
+            rows.forEach((row, index) => {
+                row.querySelector('.row-number').textContent = index + 1;
+            });
+        }
+    </script>
+
+    <!-- Custom Styles -->
+    <style>
+        .form-control.border-danger,
+        .form-select.border-danger {
+            border-color: #dc3545 !important;
+            background-color: #fff5f5;
+        }
+
+        .email-error,
+        .contact-error {
+            display: block;
+            font-size: 0.75rem;
+            margin-top: 2px;
+        }
+
+        .form-control-sm,
+        .form-select-sm {
+            padding: 0.375rem 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: #e7f3ff !important;
+            transition: background-color 0.3s ease;
+        }
+
+        .table tbody td {
+            vertical-align: middle;
+            padding: 8px;
+        }
+
+        .btn {
+            border-radius: 5px;
+            padding: 0.5rem 1.5rem;
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .table-responsive {
+                font-size: 0.85rem;
+            }
+
+            .form-control-sm,
+            .form-select-sm {
+                padding: 0.25rem 0.4rem;
+                font-size: 0.75rem;
+            }
+        }
+    </style>
+
     <script>
         (function() {
             'use strict'
